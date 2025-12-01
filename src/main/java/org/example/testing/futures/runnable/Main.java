@@ -1,4 +1,4 @@
-package org.example.testing.runnable;
+package org.example.testing.futures.runnable;
 
 import java.util.concurrent.*;
 

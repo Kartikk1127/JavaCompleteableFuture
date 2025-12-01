@@ -1,4 +1,4 @@
-package org.example.testing.callable;
+package org.example.testing.futures.callable;
 
 import java.util.concurrent.*;
 
@@ -54,6 +54,8 @@ public class Main {
 
                     // the take() method on ECS will wait till any of the futures is completed
                     // the ECS uses a class called FutureTask to do its job.
+                    // ECS wraps the callable with an implementation of a future task and submit it to the executor service it is decorating.
+                    // the take() method simply delegates to the java queue for processing.
                     Future future = srv.take();
                     if (future==future1) {
                         // handle task 1 future

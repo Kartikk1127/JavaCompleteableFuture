@@ -1,4 +1,4 @@
-package org.example.testing.callable;
+package org.example.testing.futures.callable;
 
 public class TaskResult {
     private String name;
