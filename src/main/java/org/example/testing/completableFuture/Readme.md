@@ -54,3 +54,54 @@ CompletableFuture.supplyAsync(task1))
 ```java
 Result = Combined(task1 : task2) :: Handled Apply :: Handled Accept
 ```
+
+### CompletableFuture class
+
+```java 
+import java.util.Objects;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
+
+public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
+
+    // methods to start a new task on a new thread. Overloaded methods available to use Executor
+    // methods to start a task asynchronously
+    // Completable Future methods take runnable or supplier to start a new task unlike Executor Service that takes a runnable or a callable
+    // Completable Futures are designed with runtime exceptions in mind
+    // Supplier interface doesn't throw any checked exception hence used in CompletableFuture
+    // A callable can't directly in a CompletableFuture, though it can be wrapped in a try-catch and by rethrowing exceptions.
+    public static java.util.concurrent.CompletableFuture<Void> runAsync(Runnable runnable);
+    public static <U> java.util.concurrent.CompletableFuture<U> supplyAsync(Supplier<U> supplier);
+
+    // methods to help with the pipeline. Overloaded methods available to use Executor
+    public <U> java.util.concurrent.CompletableFuture<U> thenApply(Function<? super T, ? extends U> fn);
+    public <U> java.util.concurrent.CompletableFuture<U> thenCompose(
+            Function<? super T, ? extends CompletionStage<U>> fn);
+    public java.util.concurrent.CompletableFuture<Void> thenAccept(Consumer<? super T> action);
+    public java.util.concurrent.CompletableFuture<Void> thenRun(Runnable action);
+
+    // combine results of 2 tasks
+    public <U, V> java.util.concurrent.CompletableFuture<V> thenCombine(
+            CompletionStage<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn);
+
+    // handle multiple completable futures
+    public static java.util.concurrent.CompletableFuture<Void> allOf(java.util.concurrent.CompletableFuture<?>... cfs);
+    public static java.util.concurrent.CompletableFuture<Objects> anyOf(java.util.concurrent.CompletableFuture<?>... cfs);
+
+    // complete a completableFuture
+    public boolean complete(T value);
+    public boolean completeExceptionally(Throwable ex);
+
+    // methods to avoid because they block
+    public T get() throws InterruptedException, ExecutionException;
+    public T join();
+}
+```
+
+### Pipeline Creation vs Pipeline Execution
+1. runAsync(), thenApply(), thenAccept() are all called during pipeline creation phase. These methods are called on a single thread.
+2. The suppliers, consumers and the functions that are supplied to the above methods are executed during the pipeline execution phase. These may be executed on different threads.
+3. But what happens when doTask() throws a runtime exception? After, the supplyAsync() you need to handle it.
+4. What happens when there are multiple asynchronous tasks running already in different threads and one of the stages throws an exception. If there are no exception handlers, the entire pipeline errors up.
+5. The running tasks are no automatically cancelled, they keep running in the background but no one would be interested in their results.
