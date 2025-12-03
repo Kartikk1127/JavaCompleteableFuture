@@ -105,3 +105,79 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 3. But what happens when doTask() throws a runtime exception? After, the supplyAsync() you need to handle it.
 4. What happens when there are multiple asynchronous tasks running already in different threads and one of the stages throws an exception. If there are no exception handlers, the entire pipeline errors up.
 5. The running tasks are no automatically cancelled, they keep running in the background but no one would be interested in their results.
+
+### Exception Recovery - exceptionally()
+
+```java 
+import org.example.testing.futures.callable.Main;
+import org.example.testing.futures.callable.TaskResult;
+
+import java.util.concurrent.CompletableFuture;
+
+// execute a task in common pool
+// then apply a function
+// then recover from exception if necessary
+// then Accept the result which will be consumed by consumer
+CompletableFuture pipeline = CompletableFuture.supplyAsync(() -> Main.doTask("some task", 3, true))
+        .thenApply(taskResult -> taskResult.secs)
+        .exceptionally(t -> 0)
+        .thenAccept(time -> {
+            System.out.println(time);
+        })
+
+// then compose is used when a function itself returns a completable future (unlike then apply which returns an integer)
+// then apply is triggered only after the completable future returned by handle task result completes
+// all the stages run one after the other
+CompletableFuture pipeline = CompletableFuture.supplyAsync(() -> Main.doTask("task", 3, false))
+        .thenCompose(taskResult -> CompletableFuture.handleTaskResult(taskResult))
+        .thenApply(data -> data + " :: Handled apply")
+        .thenAccept(data -> {
+            System.out.println(data + ":: Handled accept");
+        });
+
+private static CompletableFuture<String> handleTaskResult(TaskResult taskResult) {
+    return CompletableFuture.supplyAsync(() -> {
+        return taskResult + " :: Handled Compose";
+    });
+}
+
+// Result = TaskResult[taskName= task, secs = 3] :: Handled Compose :: Handled apply :: Handled accept
+```
+
+### thenCombine(...)
+
+```java
+// Tasks to execute asynchronously and in parallel
+
+import org.example.testing.futures.callable.Main;
+import org.example.testing.futures.callable.TaskResult;
+
+import java.util.concurrent.CompletableFuture;
+
+Supplier<TaskResult> task1 = () -> Main.doTask("task1", 3, false);
+Supplier<TaskResult> task2 = () -> Main.doTask("task2", 5, false);
+
+// thenCombine will combine the results of task1 and task2
+// thenApply will operate on this combined result
+
+// the pipeline starts by running task1 asynchronously which will run on the common fork join pool
+// in fact before the pipeline is fully created, two tasks would have started running in parallel.
+// task 1 completes in 3 seconds, but the pipeline execution doesn't progress till the task 2 is completed
+// once the task2 is completed, the lambda for combining the task results is triggered
+// fuze method just combines the results in one string
+// after this, thenApply and thenAccept stages are triggered as usual.
+CompletableFuture pipeline = CompletableFuture.supplyAsync(task1)
+        .thenCombine(
+                CompletableFuture.supplyAsync(task2),
+                (result1, result2) -> fuze(result1.taskName(), result2.taskName()))
+        .thenApply(data -> data + " :: Handled apply")
+        .thenAccept(data -> {
+            System.out.println(data + " :: Handled accept");
+        });
+
+private static String fuze(String s1, String s2) {
+    return String.format("Combined (%s : %s)", s1, s2);
+} 
+
+// Result = Combined (task1 : task2) :: Handled Apply :: Handled accept
+```
