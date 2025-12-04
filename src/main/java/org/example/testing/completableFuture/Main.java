@@ -2,6 +2,7 @@ package org.example.testing.completableFuture;
 
 import org.example.testing.futures.callable.TaskResult;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
@@ -101,7 +102,7 @@ public class Main {
     // then run task3 and task4 in parallel
     // after task3 and task4 complete, accept the result
     // total time to run the pipeline should be around 10 seconds
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
+/*    public static void main(String[] args) throws ExecutionException, InterruptedException {
 
         Supplier<TaskResult> task1 = () -> org.example.testing.futures.callable.Main.doTask("task1", 3, false);
         Supplier<TaskResult> task2 = () -> org.example.testing.futures.callable.Main.doTask("task2", 4, false);
@@ -132,6 +133,64 @@ public class Main {
 
         System.out.println(System.currentTimeMillis() - start);
 
+    }*/
+
+/*    public static void main(String[] args) throws ExecutionException, InterruptedException {
+
+        // tasks we want to run in parallel
+        Supplier<TaskResult> task1 = () -> org.example.testing.futures.callable.Main.doTask("task1", 3, false);
+        Supplier<TaskResult> task2 = () -> org.example.testing.futures.callable.Main.doTask("task2", 4, false);
+        Supplier<TaskResult> task3 = () -> org.example.testing.futures.callable.Main.doTask("task3", 5, false);
+        Supplier<TaskResult> task4 = () -> org.example.testing.futures.callable.Main.doTask("task4", 6, false);
+
+        // let's run all of them in parallel
+        var future1 = CompletableFuture.supplyAsync(task1);
+        var future2 = CompletableFuture.supplyAsync(task2);
+        var future3 = CompletableFuture.supplyAsync(task3);
+        var future4 = CompletableFuture.supplyAsync(task4);
+
+        // returns a completable future which completes when all 4 futures are completed
+        // Note :: allOf(..) does not "wait" for all 4 to complete. It simply returns a completable future
+        // even if one of the 4 futures complete exceptionally, the final future will complete exceptionally
+        // return type is Void
+        CompletableFuture future = CompletableFuture.allOf(future1, future2, future3, future4);
+
+        CompletableFuture<Void> pipeline =
+                future.thenAccept(unused -> {
+                    System.out.println(List.of(future1.join(), future2.join(), future3.join(), future4.join()));
+                })
+                        .exceptionally(throwable -> handleErrors(throwable));
+
+    }*/
+
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+
+        // tasks we want to run in parallel
+        Supplier<TaskResult> task1 = () -> org.example.testing.futures.callable.Main.doTask("task1", 3, false);
+        Supplier<TaskResult> task2 = () -> org.example.testing.futures.callable.Main.doTask("task2", 4, false);
+        Supplier<TaskResult> task3 = () -> org.example.testing.futures.callable.Main.doTask("task3", 5, false);
+        Supplier<TaskResult> task4 = () -> org.example.testing.futures.callable.Main.doTask("task4", 6, false);
+
+        // let's run all of them in parallel
+        var future1 = CompletableFuture.supplyAsync(task1);
+        var future2 = CompletableFuture.supplyAsync(task2);
+        var future3 = CompletableFuture.supplyAsync(task3);
+        var future4 = CompletableFuture.supplyAsync(task4);
+
+        // returns a completable future which completes when any of the 4 futures complete
+        // the remaining tasks are not cancelled
+        CompletableFuture future = CompletableFuture.anyOf(future1, future2, future3, future4);
+
+        CompletableFuture<Object> pipeline =
+                future.thenAccept(result -> {
+                            System.out.println("Handling accept :: " + result);
+                        })
+                        .exceptionally(throwable -> handleErrors(throwable));
+
+    }
+
+    private static Object handleErrors(Object throwable) {
+        return null;
     }
 
     private static String fuze(String s1, String s2) {

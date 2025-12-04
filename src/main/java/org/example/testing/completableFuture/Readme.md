@@ -181,3 +181,83 @@ private static String fuze(String s1, String s2) {
 
 // Result = Combined (task1 : task2) :: Handled Apply :: Handled accept
 ```
+
+### CompletableFuture and Threads
+There's always a confusion when it comes to which thread is exactly triggering the different stages of the pipeline
+
+```java
+// execute a task in parallel
+// then apply a function
+// then accept the result which will be consumed by the consumer
+
+import org.example.ExecutorService;
+import org.example.testing.futures.callable.Main;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+// let's say the below pipeline was created by thread-x
+// the thread that executes the supply async method is from the common fork join pool, let's call it - common.thread-0
+// now which thread calls the function supplied to thenApply? It depends on : 
+// 1. If the next stage in the pipeline is available, then the thread that completes the current stage will immediately trigger the next stage
+// 2. 
+// Note that the function thenAccept will be called by thread-x only but the function supplied to it will be called by a common.thread-0(case1)
+// thread-x is part of pipeline creation process, common.thread-0 is a part of pipeline execution process.
+CompletableFuture pipeline = CompletableFuture.supplyAsync(() -> Main.doTask("someTask", 3, false))
+        .thenApply(result -> result.secs)
+        .thenAccept(time -> {
+            System.out.println(time);
+        });
+
+// Under what circumstances, will the next stage in the pipeline not be available?
+// in case the common.thread-0 which executed the supply async method becomes busy doing some other cpu intensive task, in that case thread-x executes the method supplied to thenApply as well as thread-x
+CompletableFuture pipeline = CompletableFuture.supplyAsync(() -> Main.doTask("someTask", 3, false));
+
+        try{
+                TimeUnit.SECONDS.
+
+sleep(5);
+        }catch(
+InterruptedException exception){
+        throw new
+
+RuntimeException(exception);
+        }
+                pipeline.
+
+thenApply(result ->result.secs)
+        .
+
+thenAccept(time ->{
+        System.out.
+
+println(time);
+                });
+
+// execute a task in common thread pool
+// then apply a function on another executor service thread
+// then accept the result on another executor service thread
+CompletableFuture pipeline = CompletableFuture.supplyAsync(() -> Main.doTask("someTask", 3, false) //common.thread-0) 
+        .thenApplyAsync(result -> result.secs // common.thread-1)
+                .thenAcceptAsync(time -> {
+                    System.out.println(time); // common.thread-2
+                });
+
+// there is another version of thenApplyAsync and thenAcceptAsync method which takes in an executor service
+// when that is used, the stage will be triggered from a thread on the executor service and not from the common fork join pool
+
+// an executor service declared
+private static ExecutorService mypool = Executors.newCachedThreadPool();
+
+// execute a task in common pool thread-x
+// then apply a function on another executor service thread
+// then accept the result on another executor service thread
+// we should use the async version of the methods so that the pipeline creation thread doesn't get blocked.
+CompletableFuture pipeline = CompletableFuture.supplyAsync(() -> Main.doTask("someTask", 3, false) // common.thread-0
+        .thenApplyAsync(result -> result.secs, mypool // mypool.thread-0)
+                .thenAcceptAsync(time -> {
+                    System.out.println(time);
+                }, mypool); // mypool.thread-1
+
+```
